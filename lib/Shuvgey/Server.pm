@@ -6,22 +6,33 @@ use AnyEvent;
 use AnyEvent::Socket;
 use AnyEvent::Handle;
 use AnyEvent::TLS;
+use Protocol::HTTP2;
 use Protocol::HTTP2::Constants qw(const_name);
 use Protocol::HTTP2::Server;
 use Data::Dumper;
+use URI::Escape qw(uri_unescape);
 
 use constant {
     TRUE  => !undef,
     FALSE => !!undef,
-    DEBUG => $ENV{SHUVGEY_DEBUG},
+
+    STOP => exists $ENV{SHUVGEY_DEBUG},
+
+    # Log levels
+    DEBUG     => 0,
+    INFO      => 1,
+    NOTICE    => 2,
+    WARNING   => 3,
+    ERROR     => 4,
+    CRITICAL  => 5,
+    ALERT     => 6,
+    EMERGENCY => 7,
 };
 
 my $start_time = AnyEvent->now;
 
-sub debug {
-    return unless DEBUG;
-
-    if ( shift() <= DEBUG ) {
+sub talk($$) {
+    if ( shift() >= $ENV{SHUVGEY_DEBUG} ) {
         my $message = shift;
         chomp($message);
         $message =~ s/\n/\n           /g;
@@ -38,7 +49,7 @@ sub new {
 sub run {
     my ( $self, $app ) = @_;
 
-    debug( 5, Dumper($self) );
+    STOP and talk DEBUG, Dumper($self);
 
     my ( $host, $port );
     if ( $self->{listen} ) {
@@ -51,18 +62,18 @@ sub run {
 
     $self->{exit} = AnyEvent->condvar;
 
-    $self->run_tcp_server( $host, $port );
+    $self->run_tcp_server( $app, $host, $port );
 
     my $recv = $self->{exit}->recv;
-    debug( 5, $recv );
+    STOP and talk INFO, $recv;
 }
 
 sub run_tcp_server {
-    my ( $self, $host, $port ) = @_;
+    my ( $self, $app, $host, $port ) = @_;
 
     tcp_server $host, $port, sub {
 
-        my ( $fh, $host, $port ) = @_;
+        my ( $fh, $peer_host, $peer_port ) = @_;
 
         my $tls = $self->create_tls or return;
 
@@ -74,7 +85,7 @@ sub run_tcp_server {
             tls_ctx  => $tls,
             on_error => sub {
                 $_[0]->destroy;
-                debug( 1, "connection error" );
+                STOP and talk ERROR, "connection error";
             },
             on_eof => sub {
                 $handle->destroy;
@@ -88,39 +99,58 @@ sub run_tcp_server {
             },
             on_error => sub {
                 my $error = shift;
-                debug(
-                    1,
-                    sprintf "Error occured: %s\n",
-                    const_name( "errors", $error )
-                );
+                STOP and talk
+                  ERROR,
+                  sprintf "Error occured: %s\n",
+                  const_name( "errors", $error );
             },
             on_request => sub {
                 my ( $stream_id, $headers, $data ) = @_;
-                my %h = (@$headers);
 
-                # Push promise (must be before response)
-                if ( $h{':path'} eq '/minil.toml' ) {
-                    $server->push(
-                        ':authority' => $host . ':' . $port,
-                        ':method'    => 'GET',
-                        ':path'      => '/cpanfile',
-                        ':scheme'    => 'https',
-                        stream_id    => $stream_id,
-                    );
+                my $env =
+                  $self->psgi_env( $host, $port, $peer_host, $peer_port,
+                    $headers, $data );
+
+                my $response = eval { $app->($env) }
+                  || $self->internal_error($@);
+
+                # TODO: support for CODE
+                if ( ref $response ne 'ARRAY' ) {
+                    $response = $self->internal_error(
+                        "PSGI CODE response not supported yet");
                 }
 
-                my $message = "hello, world!";
+                my $body;
+
+                if ( ref $response->[2] eq 'ARRAY' ) {
+                    $body = join '', @{ $response->[2] };
+                }
+                elsif ( ref $response->[2] eq 'GLOB' ) {
+                    local $/ = \4096;
+                    $body = '';
+                    while ( defined( my $chunk = $response->[2]->getline ) ) {
+                        $body .= $chunk;
+                    }
+                }
+                else {
+                    STOP and talk INFO, Dumper $response->[2];
+                    $response =
+                      $self->internal_error( "body ref type "
+                          . ( ref $response->[2] )
+                          . " not supported yet" );
+                }
+
+                my @h = ();
+                for my $h ( @{ $response->[1] } ) {
+                    STOP and talk INFO, $h;
+                    push @h, "$h";
+                }
+
                 $server->response(
-                    ':status' => 200,
                     stream_id => $stream_id,
-                    headers   => [
-                        'server'         => 'Shuvgey/0.01',
-                        'content-length' => length($message),
-                        'cache-control'  => 'max-age=3600',
-                        'date'           => 'Fri, 18 Apr 2014 07:27:11 GMT',
-                        'last-modified'  => 'Thu, 27 Feb 2014 10:30:37 GMT',
-                    ],
-                    data => $message,
+                    ':status' => $response->[0],
+                    headers   => \@h,
+                    data      => $body,
                 );
             },
         );
@@ -143,7 +173,23 @@ sub run_tcp_server {
                 $handle->push_shutdown if $server->shutdown;
             }
         );
-    };
+      },
+
+      # Bound to host:port
+      sub {
+        ( undef, $host, $port ) = @_;
+        STOP and talk NOTICE, "Ready to serve request\n";
+
+        # For Plack::Runner
+        $self->{server_ready}->(
+            {
+                host            => $host,
+                port            => $port,
+                server_software => 'Shuvgey',
+            }
+        ) if $self->{server_ready};
+        return TRUE;
+      };
 
     return TRUE;
 }
@@ -173,6 +219,89 @@ sub create_tls {
 
 sub finish {
     shift->{exit}->send(shift);
+}
+
+sub psgi_env {
+    my ( $self, $host, $port, $peer_host, $peer_port, $headers, $data ) = @_;
+
+    my $input;
+    open $input, '<', \$data if defined $data;
+
+    my $env = {
+        'psgi.version'      => [ 1, 1 ],
+        'psgi.input'        => $input,
+        'psgi.errors'       => *STDERR,
+        'psgi.multithread'  => FALSE,
+        'psgi.multiprocess' => FALSE,
+        'psgi.run_once'     => FALSE,
+        'psgi.nonblocking'  => TRUE,
+        'psgi.streaming'    => FALSE,
+        'SCRIPT_NAME'       => '',
+        'SERVER_NAME'       => $host,
+        'SERVER_PORT'       => $port,
+
+        # Plack::Middleware::Lint didn't like h2-12 ;-)
+        'SERVER_PROTOCOL' => "HTTP/1.1",
+
+        # This not in PSGI spec. Why not?
+        'REMOTE_HOST' => $peer_host,
+        'REMOTE_ADDR' => $peer_host,
+        'REMOTE_PORT' => $peer_port,
+    };
+
+    for my $i ( 0 .. @$headers / 2 - 1 ) {
+        my ( $h, $v ) = ( $headers->[ $i * 2 ], $headers->[ $i * 2 + 1 ] );
+        if ( $h eq ':method' ) {
+            $env->{REQUEST_METHOD} = $v;
+        }
+        elsif ( $h eq ':scheme' ) {
+            $env->{'psgi.url_scheme'} = $v;
+        }
+        elsif ( $h eq ':path' ) {
+            $env->{REQUEST_URI} = $v;
+            my ( $path, $query ) = ( $v =~ /^([^?]*)\??(.*)?$/s );
+            $env->{QUERY_STRING} = $query || '';
+            $env->{PATH_INFO} = uri_unescape($path);
+        }
+        elsif ( $h eq ':authority' ) {
+
+            #TODO: what to do with :authority?
+        }
+        elsif ( $h eq 'content-length' ) {
+            $env->{CONTENT_LENGTH} = $v;
+        }
+        elsif ( $h eq 'content-type' ) {
+            $env->{CONTENT_TYPE} = $v;
+        }
+        else {
+            my $header = 'HTTP_' . uc($h);
+            if ( exists $env->{$header} ) {
+                $env->{$header} .= ', ' . $v;
+            }
+            else {
+                $env->{$header} = $v;
+            }
+        }
+    }
+    @$headers = ();
+    STOP and talk INFO, Dumper($env);
+    return $env;
+}
+
+sub internal_error {
+    my ( $self, $error ) = @_;
+
+    my $message = "500 - Internal Server Error";
+    STOP and talk ERROR, "$message: $error\n";
+
+    return [
+        500,
+        [
+            'Content-Type'   => 'text/plain',
+            'Content-Length' => length($message)
+        ],
+        [$message]
+    ];
 }
 
 1;
