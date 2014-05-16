@@ -1,6 +1,9 @@
 Revision history for Perl extension Shuvgey
 
 {{$NEXT}}
-
+    
     - original version
+    - filling PSGI request env
+    - handling PSGI response
+    - 500 Internal Error
 
