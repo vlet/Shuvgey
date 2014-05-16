@@ -46,6 +46,7 @@
             "Net::SSLeay" : "> 1.45",
             "Plack" : "0",
             "Protocol::HTTP2" : "0.06",
+            "URI::Escape" : "0",
             "perl" : "5.008005"
          }
       },
@@ -56,6 +57,17 @@
       }
    },
    "release_status" : "unstable",
+   "resources" : {
+      "bugtracker" : {
+         "web" : "https://github.com/vlet/Shuvgey/issues"
+      },
+      "homepage" : "https://github.com/vlet/Shuvgey",
+      "repository" : {
+         "type" : "git",
+         "url" : "git://github.com/vlet/Shuvgey.git",
+         "web" : "https://github.com/vlet/Shuvgey"
+      }
+   },
    "version" : "0.01",
    "x_authority" : "cpan:CRUX"
 }
