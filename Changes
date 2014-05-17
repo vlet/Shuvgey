@@ -1,9 +1,14 @@
 Revision history for Perl extension Shuvgey
 
 {{$NEXT}}
-    
-    - original version
+
+0.02 2014-05-17T10:19:39Z
+
     - filling PSGI request env
     - handling PSGI response
-    - 500 Internal Error
+    - 500 Internal Error page
+    - no_tls and upgrade options
 
+0.01 2014-05-17T10:15:21Z
+
+    - original version
