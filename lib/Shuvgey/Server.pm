@@ -11,6 +11,7 @@ use Protocol::HTTP2::Constants qw(const_name);
 use Protocol::HTTP2::Server;
 use Data::Dumper;
 use URI::Escape qw(uri_unescape);
+use Carp;
 
 use constant {
     TRUE  => !undef,
@@ -60,6 +61,21 @@ sub run {
     $host = $self->{host} || undef;
     $port = $self->{port} || undef;
 
+    if ( !exists $self->{no_tls} ) {
+        STOP and talk INFO, "tls\n";
+        if ( exists $self->{upgrade} ) {
+            $self->{no_tls} = TRUE;
+        }
+        elsif (!exists $self->{tls_crt}
+            || !-r $self->{tls_crt}
+            || !exists $self->{tls_key}
+            || !-r $self->{tls_key} )
+        {
+            croak "Can't read tls_crt or tls_key files\n"
+              . "Use --no_tls option to start Shuvgey without tls";
+        }
+    }
+
     $self->{exit} = AnyEvent->condvar;
 
     $self->run_tcp_server( $app, $host, $port );
@@ -74,15 +90,22 @@ sub run_tcp_server {
     tcp_server $host, $port, sub {
 
         my ( $fh, $peer_host, $peer_port ) = @_;
+        my $tls;
 
-        my $tls = $self->create_tls or return;
+        if ( !exists $self->{no_tls} ) {
+            $tls = $self->create_tls or return;
+        }
 
         my $handle;
         $handle = AnyEvent::Handle->new(
             fh       => $fh,
             autocork => 1,
-            tls      => "accept",
-            tls_ctx  => $tls,
+            $tls
+            ? (
+                tls     => "accept",
+                tls_ctx => $tls,
+              )
+            : (),
             on_error => sub {
                 $_[0]->destroy;
                 STOP and talk ERROR, "connection error";
@@ -94,6 +117,7 @@ sub run_tcp_server {
 
         my $server;
         $server = Protocol::HTTP2::Server->new(
+            exists $self->{upgrade} ? ( upgrade => 1 ) : (),
             on_change_state => sub {
                 my ( $stream_id, $previous_state, $current_state ) = @_;
             },
