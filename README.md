@@ -17,7 +17,7 @@ protocol negotiation).
 
 # STATUS
 
-It's just prototype. But work started... 😉
+It's alpha stage. I can run simple [Dancer](https://metacpan.org/pod/Dancer) PSGI app and it even work!
 
 # NAMING
 
@@ -31,6 +31,15 @@ russian).
 
 So Shuvgey is like Tornado, but more scary: written in Perl and support HTTP/2
 protocol.
+
+# OPTIONS
+
+Avaliable all options from [plackup](https://metacpan.org/pod/plackup) and also some specific Shuvgey options:
+
+- \--no\_tls - don't encrypt connection
+- \--upgrade - use HTTP/1.1 Upgrade protocol to upgrade to HTTP/2 (no tls)
+- \--tls\_key - path to private key
+- \--tls\_key - path to certificate
 
 # LICENSE
 
