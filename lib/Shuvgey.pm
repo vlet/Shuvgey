@@ -29,7 +29,7 @@ protocol negotiation).
 
 =head1 STATUS
 
-It's just prototype. But work started... 😉
+It's alpha stage. I can run simple L<Dancer> PSGI app and it even work!
 
 =head1 NAMING
 
@@ -43,6 +43,22 @@ russian).
 
 So Shuvgey is like Tornado, but more scary: written in Perl and support HTTP/2
 protocol.
+
+=head1 OPTIONS
+
+Avaliable all options from L<plackup> and also some specific Shuvgey options:
+
+=over
+
+=item --no_tls - don't encrypt connection
+
+=item --upgrade - use HTTP/1.1 Upgrade protocol to upgrade to HTTP/2 (no tls)
+
+=item --tls_key - path to private key
+
+=item --tls_key - path to certificate
+
+=back
 
 =head1 LICENSE
 
