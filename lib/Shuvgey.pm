@@ -31,6 +31,11 @@ protocol negotiation).
 
 It's alpha stage. I can run simple L<Dancer> PSGI app and it even work!
 
+Note: with Firefox 32.0 (nightly) you may need to setup option
+network.http.spdy.enforce-tls-profile to false. For some strange reason
+Net::SSLeay try to downgrade cipher to TLS_RSA_WITH_RC4_128_MD5 that's Firefox
+didn't like.
+
 =head1 NAMING
 
 There is a wellknown python non-blocking, single-threaded HTTP server Tornado.
