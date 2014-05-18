@@ -92,6 +92,8 @@ sub run_tcp_server {
         my ( $fh, $peer_host, $peer_port ) = @_;
         my $tls;
 
+        STOP and talk INFO, "Accept connection from $peer_host:$peer_port";
+
         if ( !exists $self->{no_tls} ) {
             $tls = $self->create_tls or return;
         }
@@ -102,8 +104,31 @@ sub run_tcp_server {
             autocork => 1,
             $tls
             ? (
-                tls     => "accept",
-                tls_ctx => $tls,
+                tls         => "accept",
+                tls_ctx     => $tls,
+                on_starttls => sub {
+                    my ( $handle, $success, $error_message ) = @_;
+                    if ( !$success ) {
+                        STOP and talk ERROR, $error_message;
+                    }
+                    else {
+                        my $proto = Net::SSLeay::P_next_proto_negotiated(
+                            $handle->{tls} );
+                        STOP
+                          and talk INFO, "Client negotiated protocol: $proto";
+                        if ( $proto ne Protocol::HTTP2::ident_tls ) {
+                            STOP and talk ERROR, "$proto not supported";
+                            $handle->destroy;
+                        }
+                        else {
+                            STOP and talk INFO, "tls started ok";
+                        }
+                    }
+                },
+                on_stoptls => sub {
+                    my ($handle) = @_;
+                    STOP and talk INFO, "tls stoped: <$!>";
+                },
               )
             : (),
             on_error => sub {
@@ -221,23 +246,24 @@ sub run_tcp_server {
 sub create_tls {
     my $self = shift;
     my $tls;
+
     eval {
-        Net::SSLeay::initialize();
-        my $ctx = Net::SSLeay::CTX_tlsv1_new() or die $!;
-        Net::SSLeay::CTX_set_options( $ctx, &Net::SSLeay::OP_ALL );
-        Net::SSLeay::set_cert_and_key( $ctx, $self->{tls_crt},
-            $self->{tls_key} );
+        $tls = AnyEvent::TLS->new(
+            method    => 'tlsv1',
+            cert_file => $self->{tls_crt},
+            key_file  => $self->{tls_key},
+        );
 
         # NPN  (Net-SSLeay > 1.45, openssl >= 1.0.1)
-        Net::SSLeay::CTX_set_next_protos_advertised_cb( $ctx,
+        Net::SSLeay::CTX_set_next_protos_advertised_cb( $tls->ctx,
             [Protocol::HTTP2::ident_tls] );
 
         # ALPN (Net-SSLeay > 1.55, openssl >= 1.0.2)
         #Net::SSLeay::CTX_set_alpn_select_cb( $ctx,
         #    [ Protocol::HTTP2::ident_tls ] );
-        $tls = AnyEvent::TLS->new_from_ssleay($ctx);
     };
-    $self->finish("Some problem with SSL CTX: $@\n") if $@;
+
+    $self->finish("Some problem with TLS: $@\n") if $@;
     return $tls;
 }
 
