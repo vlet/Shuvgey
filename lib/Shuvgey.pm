@@ -61,7 +61,7 @@ Avaliable all options from L<plackup> and also some specific Shuvgey options:
 
 =item --tls_key - path to private key
 
-=item --tls_key - path to certificate
+=item --tls_crt - path to certificate
 
 =back
 

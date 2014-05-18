@@ -44,7 +44,7 @@ Avaliable all options from [plackup](https://metacpan.org/pod/plackup) and also 
 - \--no\_tls - don't encrypt connection
 - \--upgrade - use HTTP/1.1 Upgrade protocol to upgrade to HTTP/2 (no tls)
 - \--tls\_key - path to private key
-- \--tls\_key - path to certificate
+- \--tls\_crt - path to certificate
 
 # LICENSE
 
