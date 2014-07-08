@@ -2,6 +2,10 @@ Revision history for Perl extension Shuvgey
 
 {{$NEXT}}
 
+0.03 2014-07-08T13:22:45Z
+    - use system hostname
+    - required Protocol::HTTP2 >= 0.09 (HTTP/2 draft 13, HPACK draft 08)
+
 0.02 2014-05-17T10:19:39Z
 
     - filling PSGI request env

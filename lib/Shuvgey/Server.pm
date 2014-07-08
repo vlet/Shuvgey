@@ -12,6 +12,7 @@ use Protocol::HTTP2::Server;
 use Data::Dumper;
 use URI::Escape qw(uri_unescape);
 use Carp;
+use Sys::Hostname;
 
 use constant {
     TRUE  => !undef,
@@ -31,6 +32,7 @@ use constant {
 };
 
 my $start_time = AnyEvent->now;
+my $hostname   = hostname;
 
 sub talk($$) {
     if ( shift() >= $ENV{SHUVGEY_DEBUG} ) {
@@ -97,6 +99,10 @@ sub run_tcp_server {
         if ( !exists $self->{no_tls} ) {
             $tls = $self->create_tls or return;
         }
+
+        STOP
+          and talk INFO,
+          Dumper( AnyEvent::Socket::unpack_sockaddr( getsockname $fh ) );
 
         my $handle;
         $handle = AnyEvent::Handle->new(
@@ -287,8 +293,8 @@ sub psgi_env {
         'psgi.nonblocking'  => TRUE,
         'psgi.streaming'    => FALSE,
         'SCRIPT_NAME'       => '',
-        'SERVER_NAME'       => $host,
-        'SERVER_PORT'       => $port,
+        'SERVER_NAME' => $host eq '0.0.0.0' ? $hostname : $host,
+        'SERVER_PORT' => $port,
 
         # Plack::Middleware::Lint didn't like h2-12 ;-)
         'SERVER_PROTOCOL' => "HTTP/1.1",
