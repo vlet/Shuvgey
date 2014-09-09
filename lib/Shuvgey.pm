@@ -12,7 +12,7 @@ __END__
 
 =head1 NAME
 
-Shuvgey - AnyEvent HTTP/2 (draft 13) Server for PSGI
+Shuvgey - AnyEvent HTTP/2 (draft 14) Server for PSGI
 
 =head1 SYNOPSIS
 
@@ -20,7 +20,7 @@ Shuvgey - AnyEvent HTTP/2 (draft 13) Server for PSGI
 
 =head1 DESCRIPTION
 
-Shuvgey is a lightweight non-blocking, single-threaded HTTP/2 (draft 13) Server
+Shuvgey is a lightweight non-blocking, single-threaded HTTP/2 (draft 14) Server
 that runs PSGI applications on top of L<AnyEvent> event loop.
 
 Shuvgey use L<Protocol::HTTP2> for HTTP/2 support. Supported plain text HTTP/2
@@ -30,11 +30,6 @@ protocol negotiation).
 =head1 STATUS
 
 It's alpha stage. I can run simple L<Dancer> PSGI app and it even work!
-
-Note: with Firefox 33.0a (nightly) you may need to setup option
-network.http.spdy.enforce-tls-profile to false. For some strange reason
-Net::SSLeay try to downgrade cipher to TLS_RSA_WITH_RC4_128_MD5 that's Firefox
-didn't like.
 
 =head1 NAMING
 
