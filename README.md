@@ -1,6 +1,6 @@
 # NAME
 
-Shuvgey - AnyEvent HTTP/2 (draft 13) Server for PSGI
+Shuvgey - AnyEvent HTTP/2 (draft 14) Server for PSGI
 
 # SYNOPSIS
 
@@ -8,7 +8,7 @@ Shuvgey - AnyEvent HTTP/2 (draft 13) Server for PSGI
 
 # DESCRIPTION
 
-Shuvgey is a lightweight non-blocking, single-threaded HTTP/2 (draft 13) Server
+Shuvgey is a lightweight non-blocking, single-threaded HTTP/2 (draft 14) Server
 that runs PSGI applications on top of [AnyEvent](https://metacpan.org/pod/AnyEvent) event loop.
 
 Shuvgey use [Protocol::HTTP2](https://metacpan.org/pod/Protocol::HTTP2) for HTTP/2 support. Supported plain text HTTP/2
@@ -18,11 +18,6 @@ protocol negotiation).
 # STATUS
 
 It's alpha stage. I can run simple [Dancer](https://metacpan.org/pod/Dancer) PSGI app and it even work!
-
-Note: with Firefox 33.0a (nightly) you may need to setup option
-network.http.spdy.enforce-tls-profile to false. For some strange reason
-Net::SSLeay try to downgrade cipher to TLS\_RSA\_WITH\_RC4\_128\_MD5 that's Firefox
-didn't like.
 
 # NAMING
 
