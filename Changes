@@ -2,6 +2,11 @@ Revision history for Perl extension Shuvgey
 
 {{$NEXT}}
 
+0.05 2014-10-28T12:50:53Z
+    - slightly changed debug timestamps
+    - return 505 error if client doesn't support HTTP/2
+    - HTTP/2 draft 15
+
 0.04 2014-09-09T13:09:10Z
     - added support for ECDH ciphers (Net-SSLeay >= 1.56)
     - required Protocol::HTTP2 >= 0.11 (HTTP/2 draft 14, HPACK draft 09)

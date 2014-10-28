@@ -13,6 +13,8 @@ use Data::Dumper;
 use URI::Escape qw(uri_unescape);
 use Carp;
 use Sys::Hostname;
+use Scalar::Util qw(blessed);
+require Shuvgey;
 
 use constant {
     TRUE  => !undef,
@@ -31,16 +33,26 @@ use constant {
     EMERGENCY => 7,
 };
 
-my $start_time = AnyEvent->now;
+my $start_time = 0;
 my $hostname   = hostname;
 
 sub talk($$) {
     if ( shift() >= $ENV{SHUVGEY_DEBUG} ) {
         my $message = shift;
         chomp($message);
-        $message =~ s/\n/\n           /g;
-
-        printf "[%05.3f] %s\n", AnyEvent->now - $start_time, $message;
+        my $now = AnyEvent->now;
+        if ( $now - $start_time < 60 ) {
+            $message =~ s/\n/\n           /g;
+            printf "[%05.3f] %s\n", $now - $start_time, $message;
+        }
+        else {
+            my @t = ( localtime() )[ 5, 4, 3, 2, 1, 0 ];
+            $t[0] += 1900;
+            $t[1]++;
+            $message =~ s/\n/\n                      /g;
+            printf "[%4d-%02d-%02d %02d:%02d:%02d] %s\n", @t, $message;
+            $start_time = $now;
+        }
     }
 }
 
@@ -100,10 +112,6 @@ sub run_tcp_server {
             $tls = $self->create_tls or return;
         }
 
-        STOP
-          and talk INFO,
-          Dumper( AnyEvent::Socket::unpack_sockaddr( getsockname $fh ) );
-
         my $handle;
         $handle = AnyEvent::Handle->new(
             fh       => $fh,
@@ -118,19 +126,23 @@ sub run_tcp_server {
                         STOP and talk ERROR, $error_message;
                     }
                     else {
-                        my $proto = Net::SSLeay::P_next_proto_negotiated(
-                            $handle->{tls} );
+                        my $proto =
+                          Net::SSLeay::P_next_proto_negotiated( $handle->{tls} )
+                          || '';
                         STOP
                           and talk INFO, "Client negotiated protocol: $proto";
                         if ( $proto ne Protocol::HTTP2::ident_tls ) {
                             STOP and talk ERROR, "$proto not supported";
-                            $handle->destroy;
+                            $handle->push_write( $self->error_505 );
+                            $handle->push_shutdown;
                         }
                         else {
                             STOP and talk INFO, "tls started ok";
                             STOP
                               and talk INFO, "cipher: "
                               . Net::SSLeay::get_cipher( $handle->{tls} );
+                            $self->start_server( $handle, $app, $host, $port,
+                                $peer_host, $peer_port );
                         }
                     }
                 },
@@ -148,89 +160,9 @@ sub run_tcp_server {
                 $handle->destroy;
             }
         );
-
-        my $server;
-        $server = Protocol::HTTP2::Server->new(
-            exists $self->{upgrade} ? ( upgrade => 1 ) : (),
-            on_change_state => sub {
-                my ( $stream_id, $previous_state, $current_state ) = @_;
-            },
-            on_error => sub {
-                my $error = shift;
-                STOP and talk
-                  ERROR,
-                  sprintf "Error occured: %s\n",
-                  const_name( "errors", $error );
-            },
-            on_request => sub {
-                my ( $stream_id, $headers, $data ) = @_;
-
-                my $env =
-                  $self->psgi_env( $host, $port, $peer_host, $peer_port,
-                    $headers, $data );
-
-                my $response = eval { $app->($env) }
-                  || $self->internal_error($@);
-
-                # TODO: support for CODE
-                if ( ref $response ne 'ARRAY' ) {
-                    $response = $self->internal_error(
-                        "PSGI CODE response not supported yet");
-                }
-
-                my $body;
-
-                if ( ref $response->[2] eq 'ARRAY' ) {
-                    $body = join '', @{ $response->[2] };
-                }
-                elsif ( ref $response->[2] eq 'GLOB' ) {
-                    local $/ = \4096;
-                    $body = '';
-                    while ( defined( my $chunk = $response->[2]->getline ) ) {
-                        $body .= $chunk;
-                    }
-                }
-                else {
-                    STOP and talk INFO, Dumper $response->[2];
-                    $response =
-                      $self->internal_error( "body ref type "
-                          . ( ref $response->[2] )
-                          . " not supported yet" );
-                }
-
-                my @h = ();
-                for my $h ( @{ $response->[1] } ) {
-                    STOP and talk INFO, $h;
-                    push @h, "$h";
-                }
-
-                $server->response(
-                    stream_id => $stream_id,
-                    ':status' => $response->[0],
-                    headers   => \@h,
-                    data      => $body,
-                );
-            },
-        );
-
-        # First send settings to peer
-        while ( my $frame = $server->next_frame ) {
-            $handle->push_write($frame);
-        }
-
-        $handle->on_read(
-            sub {
-                my $handle = shift;
-
-                $server->feed( $handle->{rbuf} );
-
-                $handle->{rbuf} = undef;
-                while ( my $frame = $server->next_frame ) {
-                    $handle->push_write($frame);
-                }
-                $handle->push_shutdown if $server->shutdown;
-            }
-        );
+        $self->start_server( $handle, $app, $host, $port, $peer_host,
+            $peer_port )
+          unless $tls;
       },
 
       # Bound to host:port
@@ -250,6 +182,101 @@ sub run_tcp_server {
       };
 
     return TRUE;
+}
+
+sub start_server {
+    my ( $self, $handle, $app, $host, $port, $peer_host, $peer_port ) = @_;
+    my $server;
+
+    $server = Protocol::HTTP2::Server->new(
+        exists $self->{upgrade} ? ( upgrade => 1 ) : (),
+        on_change_state => sub {
+            my ( $stream_id, $previous_state, $current_state ) = @_;
+        },
+        on_error => sub {
+            my $error = shift;
+            STOP and talk
+              ERROR,
+              sprintf "Error occured: %s\n",
+              const_name( "errors", $error );
+        },
+        on_request => sub {
+            my ( $stream_id, $headers, $data ) = @_;
+
+            my $env =
+              $self->psgi_env( $host, $port, $peer_host, $peer_port,
+                $headers, $data );
+
+            my $response = eval { $app->($env) }
+              || $self->internal_error($@);
+
+            # TODO: support for CODE
+            if ( ref $response ne 'ARRAY' ) {
+                $response =
+                  $self->internal_error("PSGI CODE response not supported yet");
+            }
+
+            my $body;
+
+            if ( ref $response->[2] eq 'ARRAY' ) {
+                $body = join '', @{ $response->[2] };
+            }
+            elsif (
+                ref $response->[2] eq 'GLOB'
+                or ( blessed( $response->[2] )
+                    && $response->[2]->can('getline') )
+              )
+            {
+                local $/ = \4096;
+                $body = '';
+                while ( defined( my $chunk = $response->[2]->getline ) ) {
+                    $body .= $chunk;
+                }
+            }
+            else {
+                STOP and talk INFO, Dumper $response->[2];
+                $response =
+                  $self->internal_error( "body ref type "
+                      . ( ref $response->[2] )
+                      . " not supported yet" );
+            }
+
+            my @h = ();
+            while ( @{ $response->[1] } ) {
+                my ( $h, $v ) = splice @{ $response->[1] }, 0, 2;
+                STOP and talk INFO, $h . " = " . $v;
+                push @h, $h, $v unless lc($h) eq 'server';
+            }
+            push @h, "Server", "Shuvgey/" . $Shuvgey::VERSION;
+
+            $server->response(
+                stream_id => $stream_id,
+                ':status' => $response->[0],
+                headers   => \@h,
+                data      => $body,
+            );
+        },
+    );
+
+    # First send settings to peer
+    while ( my $frame = $server->next_frame ) {
+        $handle->push_write($frame);
+    }
+
+    $handle->on_read(
+        sub {
+            my $handle = shift;
+
+            $server->feed( $handle->{rbuf} );
+
+            $handle->{rbuf} = undef;
+            while ( my $frame = $server->next_frame ) {
+                $handle->push_write($frame);
+            }
+            $handle->push_shutdown if $server->shutdown;
+        }
+    );
+    ();
 }
 
 sub create_tls {
@@ -375,6 +402,16 @@ sub internal_error {
         ],
         [$message]
     ];
+}
+
+sub error_505 {
+    my $error = sprintf "Shuvgey support only HTTP/2 protocol (%s)",
+      Protocol::HTTP2::ident_tls;
+    join "\x0d\x0a",
+      "HTTP/1.1 505 HTTP version not supported",
+      "Content-Type: text/plain",
+      "Content-Length: " . length($error),
+      "", $error;
 }
 
 1;
