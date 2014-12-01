@@ -2,6 +2,11 @@ Revision history for Perl extension Shuvgey
 
 {{$NEXT}}
 
+0.06 2014-12-01T13:09:32Z
+    - HTTP/2 draft 16
+    - announce draft 14 support for interoperability
+    - only TLS v1.2 allowed for secure connections
+
 0.05 2014-10-28T12:50:53Z
     - slightly changed debug timestamps
     - return 505 error if client doesn't support HTTP/2

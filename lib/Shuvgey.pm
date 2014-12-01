@@ -3,7 +3,7 @@ use 5.008005;
 use strict;
 use warnings;
 
-our $VERSION = "0.05";
+our $VERSION = "0.06";
 
 1;
 __END__
@@ -12,7 +12,7 @@ __END__
 
 =head1 NAME
 
-Shuvgey - AnyEvent HTTP/2 (draft 15) Server for PSGI
+Shuvgey - AnyEvent HTTP/2 (draft 16) Server for PSGI
 
 =head1 SYNOPSIS
 
@@ -20,7 +20,7 @@ Shuvgey - AnyEvent HTTP/2 (draft 15) Server for PSGI
 
 =head1 DESCRIPTION
 
-Shuvgey is a lightweight non-blocking, single-threaded HTTP/2 (draft 15) Server
+Shuvgey is a lightweight non-blocking, single-threaded HTTP/2 (draft 16) Server
 that runs PSGI applications on top of L<AnyEvent> event loop.
 
 Shuvgey use L<Protocol::HTTP2> for HTTP/2 support. Supported plain text HTTP/2

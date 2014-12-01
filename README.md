@@ -1,6 +1,6 @@
 # NAME
 
-Shuvgey - AnyEvent HTTP/2 (draft 15) Server for PSGI
+Shuvgey - AnyEvent HTTP/2 (draft 16) Server for PSGI
 
 # SYNOPSIS
 
@@ -8,7 +8,7 @@ Shuvgey - AnyEvent HTTP/2 (draft 15) Server for PSGI
 
 # DESCRIPTION
 
-Shuvgey is a lightweight non-blocking, single-threaded HTTP/2 (draft 15) Server
+Shuvgey is a lightweight non-blocking, single-threaded HTTP/2 (draft 16) Server
 that runs PSGI applications on top of [AnyEvent](https://metacpan.org/pod/AnyEvent) event loop.
 
 Shuvgey use [Protocol::HTTP2](https://metacpan.org/pod/Protocol::HTTP2) for HTTP/2 support. Supported plain text HTTP/2
