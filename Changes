@@ -2,6 +2,9 @@ Revision history for Perl extension Shuvgey
 
 {{$NEXT}}
 
+0.07 2015-02-11T14:05:36Z
+    - HTTP/2 draft 17
+
 0.06 2014-12-01T13:09:32Z
     - HTTP/2 draft 16
     - announce draft 14 support for interoperability
