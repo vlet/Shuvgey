@@ -2,7 +2,7 @@ requires 'perl', '5.008005';
 requires 'AnyEvent';
 requires 'Plack';
 requires 'Net::SSLeay', '1.56';
-requires 'Protocol::HTTP2', '0.14';
+requires 'Protocol::HTTP2', '1.00';
 requires 'URI::Escape';
 requires 'Sys::Hostname';
 requires 'Scalar::Util';
