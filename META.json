@@ -1,10 +1,10 @@
 {
-   "abstract" : "AnyEvent HTTP/2 (draft 17) Server for PSGI",
+   "abstract" : "AnyEvent HTTP/2 (RFC 7540) Server for PSGI",
    "author" : [
       "Vladimir Lettiev <thecrux@gmail.com>"
    ],
    "dynamic_config" : 0,
-   "generated_by" : "Minilla/v2.3.0, CPAN::Meta::Converter version 2.142060",
+   "generated_by" : "Minilla/v2.4.1, CPAN::Meta::Converter version 2.150001",
    "license" : [
       "perl_5"
    ],
@@ -45,7 +45,7 @@
             "AnyEvent" : "0",
             "Net::SSLeay" : "1.56",
             "Plack" : "0",
-            "Protocol::HTTP2" : "0.14",
+            "Protocol::HTTP2" : "1.00",
             "Scalar::Util" : "0",
             "Sys::Hostname" : "0",
             "URI::Escape" : "0",
@@ -70,6 +70,6 @@
          "web" : "https://github.com/vlet/Shuvgey"
       }
    },
-   "version" : "0.07",
+   "version" : "0.08",
    "x_authority" : "cpan:CRUX"
 }
