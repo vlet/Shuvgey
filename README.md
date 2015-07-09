@@ -19,6 +19,11 @@ protocol negotiation).
 
 It's alpha stage. I can run simple [Dancer](https://metacpan.org/pod/Dancer) PSGI app and it even work!
 
+Shuvgey pass all tests of [h2spec tool](https://github.com/summerwind/h2spec)
+(version 1.01) for conformance with HTTP/2 implementation. Check it yourself:
+
+    $ h2spec -p 443 -h shuvgey.net -t
+
 # NAMING
 
 There is a wellknown python non-blocking, single-threaded HTTP server Tornado.

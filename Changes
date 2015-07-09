@@ -2,6 +2,14 @@ Revision history for Perl extension Shuvgey
 
 {{$NEXT}}
 
+0.09 2015-07-09T21:24:41Z
+    - required Protocol::HTTP2 >= 1.03 (improved conformance with RFC 7540)
+    - required Plack >= 1.0037 (now accept HTTP/2 value for
+      SERVER_PROTOCOL)
+    - Shuvgey now pass all tests of
+      [h2spec tool](https://github.com/summerwind/h2spec) (version 1.01) for
+      conformance with HTTP/2 specification
+
 0.08 2015-06-08T18:01:27Z
     - required Protocol::HTTP2 >= 1.00
     - preserved compatibility with h2-14 clients

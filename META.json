@@ -44,8 +44,8 @@
          "requires" : {
             "AnyEvent" : "0",
             "Net::SSLeay" : "1.56",
-            "Plack" : "0",
-            "Protocol::HTTP2" : "1.00",
+            "Plack" : "1.0037",
+            "Protocol::HTTP2" : "1.03",
             "Scalar::Util" : "0",
             "Sys::Hostname" : "0",
             "URI::Escape" : "0",
@@ -70,6 +70,6 @@
          "web" : "https://github.com/vlet/Shuvgey"
       }
    },
-   "version" : "0.08",
+   "version" : "0.09",
    "x_authority" : "cpan:CRUX"
 }
