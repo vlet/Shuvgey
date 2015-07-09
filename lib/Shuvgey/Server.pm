@@ -97,6 +97,15 @@ sub run {
 
     $self->run_tcp_server( $app, $host, $port );
 
+    my $w;
+    $w = AnyEvent->signal(
+        signal => "TERM",
+        cb     => sub {
+            undef $w;
+            $self->finish("Received SIGTERM");
+        }
+    );
+
     my $recv = $self->{exit}->recv;
     STOP and talk INFO, $recv;
 }
@@ -316,7 +325,7 @@ sub create_tls {
                 [ Protocol::HTTP2::ident_tls, H2_14 ] );
         }
         else {
-            die "ALPN and NPN is not supported\n";
+            die "ALPN and NPN are not supported\n";
         }
     };
 
@@ -347,8 +356,7 @@ sub psgi_env {
         'SERVER_NAME' => $host eq '0.0.0.0' ? $hostname : $host,
         'SERVER_PORT' => $port,
 
-        # Plack::Middleware::Lint didn't like h2-12 ;-)
-        'SERVER_PROTOCOL' => "HTTP/1.1",
+        'SERVER_PROTOCOL' => "HTTP/2",
 
         # This not in PSGI spec. Why not?
         'REMOTE_HOST' => $peer_host,
