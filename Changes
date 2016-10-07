@@ -1,6 +1,8 @@
 Revision history for Perl extension Shuvgey
 
 {{$NEXT}}
+    - fixed ALPN negotiation
+    - dropped h2-14 compatibility
 
 0.09 2015-07-09T21:24:41Z
     - required Protocol::HTTP2 >= 1.03 (improved conformance with RFC 7540)
