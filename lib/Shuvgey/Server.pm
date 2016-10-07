@@ -22,9 +22,6 @@ use constant {
 
     STOP => exists $ENV{SHUVGEY_DEBUG},
 
-    # Old h2 tls ident for compatibility
-    H2_14 => "h2-14",
-
     # Log levels
     DEBUG     => 0,
     INFO      => 1,
@@ -138,14 +135,17 @@ sub run_tcp_server {
                         STOP and talk ERROR, $error_message;
                     }
                     else {
-                        my $proto =
-                          Net::SSLeay::P_next_proto_negotiated( $handle->{tls} )
+                        my $proto = (
+                            exists &Net::SSLeay::P_alpn_selected
+                            ? Net::SSLeay::P_alpn_selected( $handle->{tls} )
+                            : Net::SSLeay::P_next_proto_negotiated(
+                                $handle->{tls}
+                            )
+                          )
                           || '';
                         STOP
                           and talk INFO, "Client negotiated protocol: $proto";
-                        if (   $proto ne Protocol::HTTP2::ident_tls
-                            && $proto ne H2_14 )
-                        {
+                        if ( $proto ne Protocol::HTTP2::ident_tls ) {
                             STOP and talk ERROR, "$proto not supported";
                             $handle->push_write( $self->error_505 );
                             $handle->push_shutdown;
@@ -316,13 +316,13 @@ sub create_tls {
         # ALPN (Net-SSLeay > 1.55, openssl >= 1.0.2)
         if ( exists &Net::SSLeay::CTX_set_alpn_select_cb ) {
             Net::SSLeay::CTX_set_alpn_select_cb( $tls->ctx,
-                [ Protocol::HTTP2::ident_tls, H2_14 ] );
+                [Protocol::HTTP2::ident_tls] );
         }
 
         # NPN  (Net-SSLeay > 1.45, openssl >= 1.0.1)
         elsif ( exists &Net::SSLeay::CTX_set_next_protos_advertised_cb ) {
             Net::SSLeay::CTX_set_next_protos_advertised_cb( $tls->ctx,
-                [ Protocol::HTTP2::ident_tls, H2_14 ] );
+                [Protocol::HTTP2::ident_tls] );
         }
         else {
             die "ALPN and NPN are not supported\n";
@@ -420,9 +420,7 @@ sub internal_error {
 }
 
 sub error_505 {
-    my $error =
-      sprintf "Shuvgey supports only HTTP/2 protocol (drafts %s or %s)",
-      Protocol::HTTP2::ident_tls, H2_14;
+    my $error = "Shuvgey supports only HTTP/2 protocol";
     join "\x0d\x0a",
       "HTTP/1.1 505 HTTP version not supported",
       "Content-Type: text/plain",
